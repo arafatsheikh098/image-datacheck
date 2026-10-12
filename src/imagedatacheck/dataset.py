@@ -133,10 +133,7 @@ def run_dataset_checks(
                 Finding(
                     code=CODES["W_CLASS_NAME_COLLISION"],
                     severity=Severity.WARNING,
-                    message=(
-                        f"Class names {label_list!r} collide after normalization "
-                        f"('{norm}')."
-                    ),
+                    message=(f"Class names {label_list!r} collide after normalization ('{norm}')."),
                     files=[],
                     extra={"normalized": norm, "labels": sorted(label_list)},
                 )
@@ -153,9 +150,7 @@ def run_dataset_checks(
             # tuples. A group where all members are in the same split+label
             # is fine; one where members differ in either split or label is
             # either leakage or a labelling problem.
-            split_labels = {
-                (path_to_split.get(p), path_to_label.get(p)) for p in g.members
-            }
+            split_labels = {(path_to_split.get(p), path_to_label.get(p)) for p in g.members}
             if len(split_labels) <= 1:
                 continue
             # Determine whether this is leakage (same label, different split)
