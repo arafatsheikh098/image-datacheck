@@ -25,11 +25,13 @@ def test_version_flag_prints_version() -> None:
     assert result.stdout.strip() == __version__
 
 
-def test_scan_stub_runs() -> None:
+def test_scan_stub_runs(tmp_path) -> None:
+    # M2: real scan wired in. Provide a valid flat dir.
+    (tmp_path / "a.jpg").write_bytes(b"x")
     runner = CliRunner()
-    result = runner.invoke(app, ["scan", "."])
+    result = runner.invoke(app, ["scan", str(tmp_path), "--layout", "flat"])
     assert result.exit_code == 0
-    assert "scan" in result.stdout
+    assert "Files: 1" in result.output
 
 
 def test_report_stub_runs() -> None:
