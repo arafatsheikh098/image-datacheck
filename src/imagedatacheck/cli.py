@@ -10,7 +10,12 @@ import typer
 from rich.console import Console
 
 from imagedatacheck import __version__
-from imagedatacheck.duplicates import find_exact_duplicates, find_near_duplicates
+from imagedatacheck.dataset import run_dataset_checks
+from imagedatacheck.duplicates import (
+    DuplicateGroup,
+    find_exact_duplicates,
+    find_near_duplicates,
+)
 from imagedatacheck.integrity import run_integrity
 from imagedatacheck.layout import detect_layout
 from imagedatacheck.model import FailureOn, Finding, Layout, Severity
@@ -153,6 +158,7 @@ def scan(
         low_info = report.low_info
 
     # Duplicates step (M4): exact by SHA-256, near by 64-bit phash + banding.
+    all_duplicates: list[DuplicateGroup] = []
     if files and not _no_near_duplicates:
         file_paths = [f.path for f in files]
         progress = make_progress(quiet)
@@ -173,6 +179,7 @@ def scan(
                 rotation_invariant=_rotation_invariant,
                 low_info_paths=low_info,
             )
+        all_duplicates = list(exact) + list(near)
         for g in exact:
             findings.append(
                 Finding(
@@ -193,6 +200,15 @@ def scan(
                     extra={"group_id": g.group_id, "kind": "near"},
                 )
             )
+
+    # Dataset-level checks (M5): class counts, imbalance, collisions,
+    # cross-split leakage, conflicting labels.
+    if files:
+        findings.extend(
+            run_dataset_checks(
+                files, all_duplicates, imbalance_ratio=imbalance_ratio
+            )
+        )
 
     result = make_scan_result(root, detected, files, findings)
     console.print(
