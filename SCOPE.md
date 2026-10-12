@@ -1,0 +1,38 @@
+# SCOPE.md — locked contract (do not edit)
+
+## IN SCOPE
+F1 CLI: `<pkg> scan PATH` (terminal summary and exit code) and `<pkg> report PATH --html out.html --json out.json` (writes files and prints the same summary). Options: --workers N (default: CPU count, 1 disables multiprocessing), --phash-threshold N (default 4), --rotation-invariant (hash 8 orientations; default off), --no-near-duplicates, --min-size N (default 32), --imbalance-ratio N (default 10), --extensions, --follow-symlinks (default off), --layout {auto,class_folders,split_class_folders,flat}, --fail-on {error,warning,never} (default error), --thumbnails N (default 50, report only), --quiet, --version.
+F2 Layout detection: class_folders (PATH/class/*.jpg), split_class_folders (PATH/{train|training, val|valid|validation, test|testing}/class/*.jpg), flat (no labels; integrity and duplicate checks only). Auto-detect with an explicit override; if ambiguous, warn and use class_folders. Ignore hidden files; never follow symlink loops.
+F3 Integrity checks: unreadable or corrupt files (attempt a full decode so truncated files are caught), zero-byte files, images smaller than --min-size, extension that does not match the real format, unusual modes (CMYK, palette with transparency) reported as info, EXIF orientation present reported as info, decompression-bomb guard.
+F4 Duplicates: exact duplicates by SHA-256 (size prefilter); near duplicates by 64-bit perceptual hash within the Hamming threshold, found with a pigeonhole banding index (not O(n squared) comparison); optional rotation/flip invariance; low-information images (near-constant pixels) are flagged and excluded from near-duplicate grouping so that all-black images do not form giant false groups.
+F5 Dataset checks: class counts; imbalance ratio; empty classes; class-name collisions after normalization (case, spaces, underscores, hyphens); cross-split leakage (exact and near duplicates present in more than one split); conflicting labels (duplicates or near-duplicates assigned to different classes), reported as likely label noise.
+F6 Reports: Rich terminal summary; JSON with schema_version; a standalone single-file HTML report (no external requests, all paths and names HTML-escaped, up to --thumbnails images embedded as base64 data URIs with a size cap); deterministic ordering so reports diff cleanly. Exit codes: 0 no issues at or above --fail-on; 1 issues found at or above --fail-on; 2 usage or runtime error.
+F7 Packaging and release: src layout; pyproject.toml (PEP 621); py.typed; wheel and sdist; `twine check`; CI matrix on Ubuntu, Windows and macOS with Python 3.10 and 3.12; a CI job that installs the built wheel in a clean virtualenv and runs the CLI; a tag-triggered release workflow using PyPI trusted publishing with a manual-approval environment; documented TestPyPI dry run; CHANGELOG; LICENSE (MIT); README with a GitHub Actions usage example; a workflow that publishes a sample report to GitHub Pages.
+F8 Demo dataset generator: examples/make_demo_dataset.py (Pillow only, deterministic) creates a small dataset with planted problems: a corrupt file, a tiny image, an exact duplicate, a near duplicate, a rotated copy, leakage between train and test, a mislabeled duplicate across classes, a solid-black image, and class imbalance. Used by tests, docs and the sample report.
+
+## OUT OF SCOPE
+GUI, video/audio/text data, automatic fixing or deleting of files, ML or embedding-based checks, cloud storage paths, plugins, config files, annotation formats (COCO, YOLO, VOC), anything not listed above.
+
+## ALLOWED STACK
+Python 3.10+; Typer; Rich; Pillow; imagehash (and its numpy dependency); Jinja2 (autoescape on) for the HTML report; pytest; pytest-cov; ruff; mypy; build; twine; GitHub Actions. Nothing else without a BACKLOG entry.
+
+## ACCEPTANCE CRITERIA
+
+### Global (G)
+- G1: Every planted problem in the demo dataset is found; nothing is reported on a clean control dataset (golden-file test of JSON output).
+- G2: Banded near-duplicate search returns exactly the same pairs as brute-force on random hash data for thresholds 0..6.
+- G3: Works on Windows, macOS and Linux in CI, including multiprocessing and non-ASCII file names.
+- G4: Wheel installs in a clean virtualenv; `<pkg> --version` and `<pkg> scan examples/demo` run.
+- G5: HTML report makes no external requests; escapes hostile file names such as `<script>.jpg` (test).
+- G6: Exit codes 0, 1 and 2 verified for each --fail-on value.
+- G7: Scan of 20,000 generated small images completes with bounded memory; time and memory measured and written to README.
+
+### Per-feature (F)
+- F1: A1 `<pkg> scan PATH` prints a Rich summary and returns an exit code per F6. A2 `<pkg> report PATH --html out.html --json out.json` writes both files and prints the summary. A3 every CLI flag listed in F1 is accepted and has the documented default. A4 `--version` prints the version from a single source of truth.
+- F2: A1 Each of the three layouts is detected correctly on generated fixtures. A2 Ambiguous layout warns and falls back to `class_folders`. A3 Symlink loop does not hang (test, skipped where symlinks are unavailable). A4 Non-ASCII and space-containing paths work on all platforms. A5 Results are in deterministic order. A6 Empty folder and missing path return clear error with exit code 2.
+- F3: A1 Truncated, zero-byte, tiny, wrong-extension, and decompression-bomb files are each reported correctly (fixtures). A2 Unusual modes and EXIF orientation present are reported as info, not errors. A3 Results identical with `--workers 1` and `--workers 4` (test). A4 Multiprocessing works on Windows and macOS in CI. A5 One unreadable file never aborts the scan. A6 Memory stays bounded on 20,000 images (measured).
+- F4: A1 Banded search returns exactly the brute-force pairs on random hash data for thresholds 0..6. A2 Exact duplicate, re-saved JPEG, resized copy, and (with `--rotation-invariant`) rotated/flipped copy are found; unrelated image is not (fixtures). A3 Solid-black and solid-white images do not form near-duplicate groups. A4 Grouping is transitive and deterministic (group ids stable across runs). A5 20,000 images finish within the time recorded in the README.
+- F5: A1 Leakage between train and test is reported with both file paths (golden test). A2 Duplicate present in two different classes is reported as a conflicting label. A3 Class names "Rose", "rose " and "ROSE" collide; "rose" and "rosa" do not. A4 Imbalance ratio threshold is respected at the exact boundary. A5 Clean control dataset produces zero findings.
+- F6: A1 JSON output matches a golden file for the demo dataset. A2 File named `<script>alert(1)</script>.jpg` appears escaped in HTML; HTML contains no external http(s) references. A3 Exit codes 0, 1 and 2 verified for each --fail-on value. A4 `--thumbnails 0` produces report with no embedded images; thumbnail size cap holds. A5 Two runs on the same input give byte-identical JSON (apart from a documented timestamp field, or timestamp excluded by flag).
+- F7: A1 CI builds wheel, installs it into clean virtualenv and runs `<pkg> scan` on demo dataset. A2 `twine check` passes. A3 Release workflow is syntactically valid (use a workflow linter if available) and never runs on pull requests. A4 RELEASING.md lists every manual step in order. A5 README performance numbers come from your own recorded run.
+- F8: A1 `python examples/make_demo_dataset.py examples/demo` produces a dataset with every planted problem listed in F8. A2 The generator is deterministic (two runs produce identical outputs by bytes). A3 Pillow is the only runtime dependency.
