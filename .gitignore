@@ -36,4 +36,5 @@ coverage.xml
 docs/perf.json
 docs/sample_report*
 demo/
+# Ignore generated demo dataset (not the generator)
 examples/demo/
