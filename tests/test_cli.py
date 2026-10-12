@@ -36,11 +36,15 @@ def test_scan_stub_runs(tmp_path) -> None:
     assert "Files: 1" in result.output
 
 
-def test_report_stub_runs() -> None:
+def test_report_command_is_wired() -> None:
+    """M6: ``report`` is now a real subcommand. Calling it without any
+    input path is a usage error (exit 2)."""
     runner = CliRunner()
-    result = runner.invoke(app, ["report", "."])
-    assert result.exit_code == 0
-    assert "report" in result.stdout
+    # Missing required path argument -> exit 2
+    result = runner.invoke(app, ["report"])
+    assert result.exit_code == 2
+    # The help text is the standard Typer missing-arg output
+    assert "PATH" in result.output or "path" in result.output.lower()
 
 
 def test_python_dash_m_runs() -> None:

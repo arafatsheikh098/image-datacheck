@@ -72,6 +72,7 @@ def test_empty_class_reported(tmp_path: Path) -> None:
     # construct here). To exercise the code path, build a synthetic label
     # set with an empty entry:
     from imagedatacheck.dataset import _build_label_index
+
     # Hack: append a synthetic empty entry directly via the label-index
     # builder. Easier path: skip; empty-class detection is exercised via
     # the CLI integration below.
@@ -104,9 +105,7 @@ def test_cross_split_leakage_detected(tmp_path: Path) -> None:
     """A duplicate that appears in two splits fires W_CROSS_SPLIT_LEAKAGE."""
     f1 = _make_fileinfo(tmp_path / "train/cat/a.jpg", split="train", label="cat")
     f2 = _make_fileinfo(tmp_path / "test/cat/a.jpg", split="test", label="cat")
-    dup = DuplicateGroup(
-        group_id="g1", kind="exact", members=[f1.path, f2.path]
-    )
+    dup = DuplicateGroup(group_id="g1", kind="exact", members=[f1.path, f2.path])
     paths = [f1, f2]
     findings = run_dataset_checks(paths, [dup])
     leakage = [f for f in findings if f.code == "W_CROSS_SPLIT_LEAKAGE"]
@@ -119,9 +118,7 @@ def test_conflicting_label_detected(tmp_path: Path) -> None:
     """A duplicate in two classes fires W_CONFLICTING_LABELS."""
     f1 = _make_fileinfo(tmp_path / "train/cat/a.jpg", split="train", label="cat")
     f2 = _make_fileinfo(tmp_path / "train/dog/a.jpg", split="train", label="dog")
-    dup = DuplicateGroup(
-        group_id="g1", kind="exact", members=[f1.path, f2.path]
-    )
+    dup = DuplicateGroup(group_id="g1", kind="exact", members=[f1.path, f2.path])
     paths = [f1, f2]
     findings = run_dataset_checks(paths, [dup])
     conflicts = [f for f in findings if f.code == "W_CONFLICTING_LABELS"]
@@ -133,9 +130,7 @@ def test_no_finding_when_group_is_within_single_split_and_label(tmp_path: Path) 
     f1 = _make_fileinfo(tmp_path / "train/cat/a1.jpg", split="train", label="cat")
     f2 = _make_fileinfo(tmp_path / "train/cat/a2.jpg", split="train", label="cat")
     f3 = _make_fileinfo(tmp_path / "train/cat/a3.jpg", split="train", label="cat")
-    dup = DuplicateGroup(
-        group_id="g1", kind="exact", members=[f1.path, f2.path, f3.path]
-    )
+    dup = DuplicateGroup(group_id="g1", kind="exact", members=[f1.path, f2.path, f3.path])
     paths = [f1, f2, f3]
     findings = run_dataset_checks(paths, [dup])
     leakage = [f for f in findings if f.code == "W_CROSS_SPLIT_LEAKAGE"]
