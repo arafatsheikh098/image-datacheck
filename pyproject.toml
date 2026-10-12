@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imagedatacheck"
+version = "0.1.0"
+description = "Scan an image dataset for corrupt files, duplicates, class imbalance, leakage and conflicting labels."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "DataCheck Authors" }]
+keywords = ["dataset", "images", "quality", "machine-learning", "deduplication"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+dependencies = [
+    "typer>=0.12.3,<0.20",
+    "rich>=13.7.0,<14",
+    "Pillow>=10.0.0,<12",
+    "imagehash>=4.3.1,<5",
+    "numpy>=1.24,<3",
+    "Jinja2>=3.1.2,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0,<9",
+    "pytest-cov>=5.0.0,<7",
+    "ruff>=0.6.0,<2",
+    "mypy>=1.10.0,<2",
+    "build>=1.2.0,<2",
+    "twine>=5.0.0,<7",
+    "types-Pillow",
+]
+
+[project.scripts]
+imagedatacheck = "imagedatacheck.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/example/imagedatacheck"
+Issues = "https://github.com/example/imagedatacheck/issues"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+imagedatacheck = ["py.typed", "reporters/templates/*.j2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = [
+    "E501", # line length handled by formatter
+    "B008", # Typer uses function calls in argument defaults
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+files = ["src/imagedatacheck"]
+
+[[tool.mypy.overrides]]
+module = ["imagehash.*", "PIL.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]

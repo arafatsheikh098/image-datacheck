@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Ruff (lint)
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+
+      - name: mypy (types)
+        run: mypy src/imagedatacheck
+
+      - name: pytest (with coverage)
+        run: |
+          pytest --cov=imagedatacheck --cov-report=term-missing
+
+      - name: Build wheel + sdist
+        run: |
+          python -m build
+
+      - name: twine check
+        run: |
+          python -m pip install twine
+          python -m twine check dist/*
