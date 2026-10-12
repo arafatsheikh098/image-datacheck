@@ -27,7 +27,9 @@ def test_version_flag_prints_version() -> None:
 
 def test_scan_stub_runs(tmp_path) -> None:
     # M2: real scan wired in. Provide a valid flat dir.
-    (tmp_path / "a.jpg").write_bytes(b"x")
+    from PIL import Image
+
+    Image.new("RGB", (96, 96), (10, 20, 30)).save(tmp_path / "a.jpg", format="JPEG")
     runner = CliRunner()
     result = runner.invoke(app, ["scan", str(tmp_path), "--layout", "flat"])
     assert result.exit_code == 0

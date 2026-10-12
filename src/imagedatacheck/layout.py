@@ -36,22 +36,21 @@ def _is_split_name(name: str) -> bool:
 
 
 def _looks_like_class_folders(entries: list[Path], sample_limit: int = 32) -> bool:
-    """True if at least 2 of the first non-hidden entries are directories and
-    contain at least one image file each.
+    """True if at least one non-hidden entry is a directory that contains at
+    least one image file. A single-class dataset is a valid class_folders
+    layout.
     """
     counts = 0
-    checked = 0
     for entry in entries[:sample_limit]:
         if entry.name.startswith("."):
             continue
         if not entry.is_dir():
             continue
-        checked += 1
         for child in entry.iterdir():
             if child.is_file() and child.suffix.lower() in IMAGE_EXTENSIONS:
                 counts += 1
                 break
-    return counts >= 2
+    return counts >= 1
 
 
 def _looks_like_split_class_folders(entries: list[Path], sample_limit: int = 32) -> bool:
@@ -198,8 +197,16 @@ def assign_label_and_split(
 
 
 def is_hidden(path: Path) -> bool:
-    """True if any component of ``path`` is hidden (starts with a dot)."""
-    return any(part.startswith(".") for part in path.parts)
+    """True if any non-root component of ``path`` is hidden (starts with a dot).
+
+    The root of an absolute path is ignored: a dataset may live in
+    ``/tmp/.scratch/`` and we must still scan it. Only the components below
+    the root count.
+    """
+    parts = path.parts
+    if path.is_absolute():
+        parts = parts[1:]
+    return any(part.startswith(".") for part in parts)
 
 
 __all__ = [
