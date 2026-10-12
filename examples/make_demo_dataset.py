@@ -25,7 +25,6 @@ Only Pillow is required at runtime.
 from __future__ import annotations
 
 import io
-import os
 import random
 import sys
 from pathlib import Path
@@ -57,19 +56,30 @@ def _save_png_solid(path: Path, color: tuple[int, int, int]) -> None:
 
 
 def _make_class_image(rng: random.Random, color: tuple[int, int, int], salt: int) -> Image.Image:
-    """Deterministic per-(class, salt) image: a solid background with a 32x32 block of a second color."""
-    base = Image.new("RGB", (IMG_SIZE, IMG_SIZE), color)
-    px = base.load()
+    """Deterministic per-(class, salt) image with a rich enough pattern
+    that the low-information detector does not fire.
+
+    Each image is a 96x96 RGB picture whose base color is rotated per-salt
+    and overlaid with a per-salt unique noise pattern. The noise is enough
+    to create a non-trivial grayscale histogram (>3 non-empty bins) so the
+    integrity layer does not flag the image as low-information, but the
+    pattern is deterministic so re-encodings produce stable phashes.
+    """
+    import random as _r
+
     r, g, b = color
-    second = ((r + 80) % 256, (g + 80) % 256, (b + 80) % 256)
-    for y in range(salt * 4 % (IMG_SIZE - 32), salt * 4 % (IMG_SIZE - 32) + 32):
-        for x in range((salt * 7) % (IMG_SIZE - 32), (salt * 7) % (IMG_SIZE - 32) + 32):
-            px[x, y] = second
-    # Add deterministic noise seeded by salt
-    for i in range(200):
-        x = (salt * 13 + i * 37) % IMG_SIZE
-        y = (salt * 17 + i * 41) % IMG_SIZE
-        px[x, y] = ((x * 7 + y * 5) % 256, (y * 11) % 256, (x * 13) % 256)
+    shift = (salt * 37) % 200
+    base_color = ((r + shift) % 256, (g + shift * 2) % 256, (b + shift * 3) % 256)
+    base = Image.new("RGB", (IMG_SIZE, IMG_SIZE), base_color)
+    px = base.load()
+    # A per-salt seeded noise: add ~500 random pixels in a unique pattern
+    # so the grayscale histogram has many non-empty bins.
+    rng_noise = _r.Random(salt * 13 + 7)
+    for _ in range(500):
+        x = rng_noise.randint(0, IMG_SIZE - 1)
+        y = rng_noise.randint(0, IMG_SIZE - 1)
+        v = rng_noise.randint(0, 255)
+        px[x, y] = (v, (v + 50) % 256, (v + 100) % 256)
     return base
 
 
@@ -107,18 +117,18 @@ def main(out_dir: str = "examples/demo") -> None:
     dup.parent.mkdir(parents=True, exist_ok=True)
     dup.write_bytes(src.read_bytes())
 
-    # 2. Near duplicate: cat_01 re-encoded with a different JPEG quality
-    src = out / "train" / "cat" / "cat_01.jpg"
+    # 2. Near duplicate: cat_01 re-encoded as a JPEG with a different
+    #    quality. The bytes differ (so SHA-256 does not match) but the
+    #    perceptual hash stays within Hamming 4 of the original.
+    src_img = Image.open(out / "train" / "cat" / "cat_01.jpg")
     near = out / "test" / "cat" / "cat_01_near.jpg"
-    img = Image.open(src)
-    _save_jpeg(img, near, quality=20)
+    _save_jpeg(src_img, near, quality=90)
 
     # 3. Leakage between train and test (covered by exact duplicate above;
     #    add a near duplicate that crosses splits too)
-    src = out / "train" / "dog" / "dog_00.jpg"
+    src_img = Image.open(out / "train" / "dog" / "dog_00.jpg")
     near = out / "test" / "dog" / "dog_00_near.jpg"
-    img = Image.open(src)
-    _save_jpeg(img, near, quality=30)
+    _save_jpeg(src_img, near, quality=90)
 
     # 4. Rotated copy: same image rotated 90 degrees (only caught with --rotation-invariant)
     src = out / "train" / "bird" / "bird_00.jpg"
