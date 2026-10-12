@@ -41,6 +41,7 @@ dev = [
     "build>=1.2.0,<2",
     "twine>=5.0.0,<7",
     "types-Pillow",
+    "pyyaml>=6.0,<7",
 ]
 
 [project.scripts]
