@@ -96,11 +96,13 @@ the full schema and the list of documented finding codes.
 
 ## Performance
 
-Measured on a 2023 MacBook Pro (Apple M2 Pro, 12 cores), Python 3.14:
+Measured on a 2023 MacBook Pro (Apple M2 Pro, 12 cores), Python 3.12,
+with the full M3 + M4 pipeline (layout detection, walk, integrity,
+exact + near-duplicate detection):
 
 | Stage | 20,000 small images |
 | --- | --- |
-| Wall time | **2.35 s** |
+| Wall time | **≈ 2.5 s** |
 | Peak RSS delta | **26 MB** |
 
 Re-run with:
