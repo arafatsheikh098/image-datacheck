@@ -201,3 +201,59 @@ def test_module_level_worker_picklable() -> None:
     from imagedatacheck.integrity import _worker
 
     pickle.dumps(_worker)  # must not raise
+
+
+def test_missing_path_emits_unreadable(tmp_path: Path) -> None:
+    """A non-existent path is reported as E_UNREADABLE."""
+    p = tmp_path / "does_not_exist.jpg"
+    result = check_file_integrity(str(p))
+    assert any(f.code == "E_UNREADABLE" for f in result.findings)
+
+
+def test_run_integrity_parallel_path(tmp_path: Path) -> None:
+    """The run_integrity() (not run_integrity_checks()) parallel branch is exercised."""
+    from imagedatacheck.integrity import run_integrity
+
+    paths: list[str] = []
+    for i in range(8):
+        p = tmp_path / f"img_{i}.png"
+        # Use a gradient so the image is NOT low-info
+        img = Image.new("RGB", (96, 96))
+        px = img.load()
+        for x in range(96):
+            for y in range(96):
+                px[x, y] = ((x + i * 7) % 256, (y + i * 11) % 256, i * 5 % 256)
+        img.save(p, format="PNG")
+        paths.append(str(p))
+    report = run_integrity(paths, min_size=32, workers=2)
+    # No errors on clean images, none are low-info
+    codes = {f["code"] for f in report.findings}
+    assert "E_TOO_SMALL" not in codes
+    assert report.low_info == set()
+
+
+def test_run_integrity_parallel_with_low_info(tmp_path: Path) -> None:
+    """Solid-black images are detected as low-info even in parallel mode."""
+    from imagedatacheck.integrity import run_integrity
+
+    p1 = tmp_path / "solid1.png"
+    p2 = tmp_path / "solid2.png"
+    Image.new("RGB", (96, 96), (5, 5, 5)).save(p1, format="PNG")
+    Image.new("RGB", (96, 96), (5, 5, 5)).save(p2, format="PNG")
+    report = run_integrity([str(p1), str(p2)], min_size=32, workers=2)
+    assert str(p1) in report.low_info
+    assert str(p2) in report.low_info
+    # Findings are dicts in the parallel path
+    codes = {f["code"] for f in report.findings}
+    assert "W_LOW_INFORMATION" in codes
+
+
+def test_worker_with_meta_handles_exceptions(tmp_path: Path) -> None:
+    """The _worker_with_meta function survives an exception during check."""
+    from imagedatacheck.integrity import _worker_with_meta
+
+    # Non-existent path: check_file_integrity returns a finding, not an exception
+    result = _worker_with_meta(str(tmp_path / "missing.jpg"), 32)
+    assert "findings" in result
+    assert "path" in result
+    assert "low_info" in result

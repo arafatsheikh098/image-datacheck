@@ -82,6 +82,22 @@ def test_banding_threshold_0_exact_only() -> None:
     assert groups == [("a", "b"), ("c", "d")]
 
 
+def test_banding_enumerate_neighbours_negative_radius() -> None:
+    """A negative radius yields nothing (treated as invalid)."""
+    from imagedatacheck.banding import _enumerate_neighbours_64
+
+    out = list(_enumerate_neighbours_64(0x1234, -1))
+    assert out == []
+
+
+def test_banding_enumerate_neighbours_radius_0() -> None:
+    """A radius-0 enumeration yields just the value."""
+    from imagedatacheck.banding import _enumerate_neighbours_64
+
+    out = list(_enumerate_neighbours_64(0xCAFE, 0))
+    assert out == [0xCAFE]
+
+
 def test_banding_threshold_1_catches_one_bit_flip() -> None:
     # Two pairs differ by 1 bit each; threshold 1 must catch both.
     # Note: 0 and 0b100 are 2 bits apart, so all four keys form a
