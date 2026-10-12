@@ -10,7 +10,8 @@ import typer
 from rich.console import Console
 
 from imagedatacheck import __version__
-from imagedatacheck.integrity import run_integrity_checks
+from imagedatacheck.duplicates import find_exact_duplicates, find_near_duplicates
+from imagedatacheck.integrity import run_integrity
 from imagedatacheck.layout import detect_layout
 from imagedatacheck.model import FailureOn, Finding, Layout, Severity
 from imagedatacheck.progress import make_progress
@@ -140,18 +141,58 @@ def scan(
     findings.extend(walk_findings)
 
     # Integrity step (M3): run after the walk, optionally in parallel.
+    low_info: set[str] = set()
     if files:
         progress = make_progress(quiet)
         if progress is not None:
             with progress:
-                integrity_findings = run_integrity_checks(
-                    [f.path for f in files], min_size=min_size, workers=workers
+                report = run_integrity([f.path for f in files], min_size=min_size, workers=workers)
+        else:
+            report = run_integrity([f.path for f in files], min_size=min_size, workers=workers)
+        findings.extend(report.findings)
+        low_info = report.low_info
+
+    # Duplicates step (M4): exact by SHA-256, near by 64-bit phash + banding.
+    if files and not _no_near_duplicates:
+        file_paths = [f.path for f in files]
+        progress = make_progress(quiet)
+        if progress is not None:
+            with progress:
+                exact = find_exact_duplicates(file_paths)
+                near = find_near_duplicates(
+                    file_paths,
+                    threshold=_phash_threshold,
+                    rotation_invariant=_rotation_invariant,
+                    low_info_paths=low_info,
                 )
         else:
-            integrity_findings = run_integrity_checks(
-                [f.path for f in files], min_size=min_size, workers=workers
+            exact = find_exact_duplicates(file_paths)
+            near = find_near_duplicates(
+                file_paths,
+                threshold=_phash_threshold,
+                rotation_invariant=_rotation_invariant,
+                low_info_paths=low_info,
             )
-        findings.extend(integrity_findings)
+        for g in exact:
+            findings.append(
+                Finding(
+                    code="W_EXACT_DUPLICATE",
+                    severity=Severity.WARNING,
+                    message=f"Exact duplicate group {g.group_id} has {len(g.members)} members.",
+                    files=list(g.members),
+                    extra={"group_id": g.group_id, "kind": "exact"},
+                )
+            )
+        for g in near:
+            findings.append(
+                Finding(
+                    code="W_NEAR_DUPLICATE",
+                    severity=Severity.WARNING,
+                    message=f"Near-duplicate group {g.group_id} has {len(g.members)} members.",
+                    files=list(g.members),
+                    extra={"group_id": g.group_id, "kind": "near"},
+                )
+            )
 
     result = make_scan_result(root, detected, files, findings)
     console.print(

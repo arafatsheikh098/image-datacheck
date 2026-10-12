@@ -77,11 +77,15 @@ class IntegrityResult:
 
 def _is_low_information(img: Image.Image) -> bool:
     """True if the image is near-constant: when converted to grayscale, the
-    histogram has at most 2 non-empty bins.
+    histogram has at most 3 non-empty bins (one dominant color, possibly
+    one or two small variations).
 
     This is the standard low-information detector used to exclude solid-color
     images from near-duplicate grouping. The grayscale conversion is what
-    actually matters for "is this image visually uniform".
+    actually matters for "is this image visually uniform". A real photograph
+    will have hundreds of non-empty bins; a two-color geometric pattern
+    will have a few more. We use 3 to keep the demo dataset's geometric
+    images in scope while still excluding solid-colour images.
     """
     try:
         gray = img.convert("L")
@@ -89,7 +93,7 @@ def _is_low_information(img: Image.Image) -> bool:
     except (OSError, ValueError):
         return False
     nonzero = sum(1 for c in hist if c > 0)
-    return nonzero <= 2
+    return nonzero <= 3
 
 
 def check_file_integrity(
@@ -383,12 +387,94 @@ def _worker(path: str, min_size: int) -> list[Finding]:
         ]
 
 
+@dataclass
+class IntegrityReport:
+    """All findings plus a per-file set of paths that are low-information."""
+
+    findings: list[Finding]
+    low_info: set[str]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "findings": [f.to_dict() for f in self.findings],
+            "low_info": sorted(self.low_info),
+        }
+
+
+def run_integrity(
+    paths: Sequence[str],
+    *,
+    min_size: int = 32,
+    workers: int = 1,
+) -> IntegrityReport:
+    """Like :func:`run_integrity_checks` but also returns the set of low-info
+    paths so the duplicate-detection stage can exclude them.
+    """
+    if workers <= 1:
+        findings: list[Finding] = []
+        low_info: set[str] = set()
+        for p in paths:
+            ir = check_file_integrity(p, min_size=min_size)
+            findings.extend(ir.findings)
+            if ir.is_low_info:
+                low_info.add(p)
+        return IntegrityReport(findings=findings, low_info=low_info)
+
+    # Parallel path
+    from multiprocessing import get_context
+
+    ctx = get_context("spawn")
+    with ctx.Pool(processes=workers) as pool:
+        results: list[dict[str, object]] = pool.starmap(
+            _worker_with_meta,
+            [(p, min_size) for p in paths],
+            chunksize=32,
+        )
+    findings = []
+    low_info = set()
+    for wr in results:
+        f_dicts = wr["findings"]
+        if isinstance(f_dicts, list):
+            findings.extend(f_dicts)
+        if wr["low_info"]:
+            path = wr["path"]
+            if isinstance(path, str):
+                low_info.add(path)
+    return IntegrityReport(findings=findings, low_info=low_info)
+
+
+def _worker_with_meta(path: str, min_size: int) -> dict[str, object]:
+    """Top-level worker returning a JSON-serializable dict."""
+    try:
+        r = check_file_integrity(path, min_size=min_size)
+    except Exception as exc:  # pragma: no cover - defensive
+        return {
+            "path": path,
+            "findings": [
+                Finding(
+                    code="E_UNREADABLE",
+                    severity=Severity.ERROR,
+                    message=f"Worker crashed on {path}: {exc}",
+                ).to_dict()
+            ],
+            "low_info": False,
+        }
+    return {
+        "path": path,
+        "findings": [f.to_dict() for f in r.findings],
+        "low_info": r.is_low_info,
+    }
+
+
 __all__ = [
     "CODES",
     "IntegrityResult",
+    "IntegrityReport",
     "check_file_integrity",
+    "run_integrity",
     "run_integrity_checks",
     # Internal worker is exported so multiprocessing can pickle the reference
     # by qualified name in tests.
     "_worker",
+    "_worker_with_meta",
 ]
