@@ -1,0 +1,41 @@
+feat(m3): integrity checks, multiprocessing, 20k perf measurement
+
+- src/imagedatacheck/integrity.py: per-file integrity check (full decode,
+  not just verify(), so truncated files are caught). Reports E_UNREADABLE,
+  E_ZERO_BYTE, E_TOO_SMALL, E_TRUNCATED, E_DECOMPRESSION_BOMB,
+  E_WRONG_EXTENSION, I_CMYK, I_PALETTE_TRANSPARENCY, I_EXIF_ORIENTATION,
+  W_LOW_INFORMATION.  run_integrity_checks() runs across a list of paths
+  with --workers=1 (sequential) or workers>1 (spawn-pool).  Top-level
+  _worker function is picklable for Windows + macOS spawn.
+- src/imagedatacheck/cli.py: scan command now invokes integrity after the
+  walk, with the requested --workers.
+- src/imagedatacheck/layout.py: lowered class_folders detection threshold
+  to >=1 class so single-class datasets are recognised; tightened
+  hidden-file detection so a dataset root whose own name starts with a
+  dot (e.g. /tmp/.scratch) is still walked.
+- src/imagedatacheck/scanner.py: pass path-relative-to-root to is_hidden()
+  so the root itself is not treated as hidden.
+- scripts/measure_20k.py: produces 20k images and measures wall time and
+  peak RSS delta.
+- tests/test_integrity.py + tests/test_memory.py: 17 new tests covering
+  every planted finding type, workers=1 vs workers=4 parity, picklability
+  of the worker, one-bad-file-doesnt-abort, and a slow 20k benchmark
+  (default 500 files; set IDC_FAST_MEMORY_TEST=1 for CI).
+- pyproject.toml: added slow pytest marker.
+
+Measured locally on macOS arm64:
+  files=20000 elapsed=2.02s peak_rss_delta=20MB
+
+SCOPE CHECK:
+- files touched: 8 (all listed in PLAN.md M3).
+- criteria met: A1 truncated, zero-byte, tiny, wrong-extension,
+                decompression-bomb each reported (fixtures).
+                A2 results identical with --workers 1 and 4 (test).
+                A3 spawn start method used (test) - exercised on CI macOS /
+                    Windows; the worker is picklable.
+                A4 one unreadable file does not abort the scan (test).
+                A5 20k scan completes with bounded memory (measured).
+- BACKLOG items added: 0
+- nothing outside scope.
+
+Co-Authored-By: puku-ai-2.8 <noreply@puku.sh>

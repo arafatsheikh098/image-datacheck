@@ -90,3 +90,6 @@ minversion = "8.0"
 addopts = "-ra -q --strict-markers"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "slow: long-running tests (memory/time benchmarks); skipped by default",
+]

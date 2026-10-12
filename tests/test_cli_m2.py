@@ -5,16 +5,20 @@ from __future__ import annotations
 import subprocess
 import sys
 
+from PIL import Image
 from typer.testing import CliRunner
 
 from imagedatacheck.cli import app
 
 
+def _write_real_jpg(path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (96, 96), (10, 20, 30)).save(path, format="JPEG")
+
+
 def test_scan_class_folders(tmp_path) -> None:
-    (tmp_path / "cat").mkdir()
-    (tmp_path / "cat" / "a.jpg").write_bytes(b"x")
-    (tmp_path / "dog").mkdir()
-    (tmp_path / "dog" / "b.jpg").write_bytes(b"x")
+    _write_real_jpg(tmp_path / "cat" / "a.jpg")
+    _write_real_jpg(tmp_path / "dog" / "b.jpg")
     runner = CliRunner()
     result = runner.invoke(app, ["scan", str(tmp_path)])
     assert result.exit_code == 0
@@ -34,7 +38,7 @@ def test_scan_empty_dir_exits_2(tmp_path) -> None:
 
 
 def test_scan_layout_override(tmp_path) -> None:
-    (tmp_path / "a.jpg").write_bytes(b"x")
+    _write_real_jpg(tmp_path / "a.jpg")
     runner = CliRunner()
     result = runner.invoke(app, ["scan", str(tmp_path), "--layout", "flat"])
     assert result.exit_code == 0
@@ -42,7 +46,7 @@ def test_scan_layout_override(tmp_path) -> None:
 
 
 def test_scan_quiet(tmp_path) -> None:
-    (tmp_path / "a.jpg").write_bytes(b"x")
+    _write_real_jpg(tmp_path / "a.jpg")
     runner = CliRunner()
     result = runner.invoke(app, ["scan", str(tmp_path), "--layout", "flat", "--quiet"])
     assert result.exit_code == 0
@@ -50,9 +54,9 @@ def test_scan_quiet(tmp_path) -> None:
 
 
 def test_scan_extensions(tmp_path) -> None:
-    (tmp_path / "a.jpg").write_bytes(b"x")
-    (tmp_path / "b.png").write_bytes(b"x")
-    (tmp_path / "c.gif").write_bytes(b"x")
+    _write_real_jpg(tmp_path / "a.jpg")
+    Image.new("RGB", (96, 96), (40, 50, 60)).save(tmp_path / "b.png", format="PNG")
+    Image.new("RGB", (96, 96), (70, 80, 90)).save(tmp_path / "c.gif", format="GIF")
     runner = CliRunner()
     result = runner.invoke(
         app, ["scan", str(tmp_path), "--layout", "flat", "--extensions", "jpg,png"]
@@ -62,7 +66,7 @@ def test_scan_extensions(tmp_path) -> None:
 
 
 def test_scan_via_python_module(tmp_path) -> None:
-    (tmp_path / "a.jpg").write_bytes(b"x")
+    _write_real_jpg(tmp_path / "a.jpg")
     completed = subprocess.run(
         [sys.executable, "-m", "imagedatacheck", "scan", str(tmp_path), "--layout", "flat"],
         capture_output=True,

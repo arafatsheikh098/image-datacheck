@@ -70,7 +70,8 @@ def walk(
     # Special case: flat layout — files at the top level
     if layout is Layout.FLAT:
         for child in sorted(root.iterdir(), key=lambda p: str(p)):
-            if is_hidden(child):
+            rel = child.relative_to(root)
+            if is_hidden(rel):
                 continue
             if child.is_file() and child.suffix.lower() in exts:
                 _try_add_file(state, root, child, layout, files)
@@ -90,7 +91,8 @@ def walk(
             return
         entries.sort(key=lambda p: str(p))
         for entry in entries:
-            if is_hidden(entry):
+            rel = entry.relative_to(root)
+            if is_hidden(rel):
                 continue
             try:
                 is_link = entry.is_symlink()
@@ -173,4 +175,4 @@ __all__ = ["walk", "make_scan_result"]
 
 # Eagerly silence the linter about unused ``os`` (kept for portability
 # of the ``os.path.sep`` constant if we ever need it).
-_ = os.sep
+_ = os.sep  # noqa: F841

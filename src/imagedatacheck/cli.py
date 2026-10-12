@@ -10,6 +10,7 @@ import typer
 from rich.console import Console
 
 from imagedatacheck import __version__
+from imagedatacheck.integrity import run_integrity_checks
 from imagedatacheck.layout import detect_layout
 from imagedatacheck.model import FailureOn, Finding, Layout, Severity
 from imagedatacheck.progress import make_progress
@@ -137,6 +138,20 @@ def scan(
             follow_symlinks=follow_symlinks,
         )
     findings.extend(walk_findings)
+
+    # Integrity step (M3): run after the walk, optionally in parallel.
+    if files:
+        progress = make_progress(quiet)
+        if progress is not None:
+            with progress:
+                integrity_findings = run_integrity_checks(
+                    [f.path for f in files], min_size=min_size, workers=workers
+                )
+        else:
+            integrity_findings = run_integrity_checks(
+                [f.path for f in files], min_size=min_size, workers=workers
+            )
+        findings.extend(integrity_findings)
 
     result = make_scan_result(root, detected, files, findings)
     console.print(
