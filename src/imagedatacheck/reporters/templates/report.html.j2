@@ -2,89 +2,449 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>imagedatacheck report — {{ result.root }}</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem auto; max-width: 1100px; padding: 0 1rem; color: #1a1a1a; }
-  h1 { font-size: 1.4rem; margin-bottom: 0.2rem; }
-  h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #ccc; padding-bottom: 0.3rem; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; vertical-align: top; }
-  th { background: #f6f6f6; }
-  .severity-error { color: #c0392b; font-weight: bold; }
-  .severity-warning { color: #b58900; }
-  .severity-info { color: #268bd2; }
-  .thumb { max-width: 96px; max-height: 96px; border: 1px solid #ddd; }
-  .meta { color: #666; font-size: 0.9rem; }
-  .counts span { margin-right: 1rem; }
-  code { background: #f0f0f0; padding: 0.1em 0.3em; border-radius: 3px; }
-  ul.files { margin: 0; padding-left: 1.2rem; }
+  :root {
+    --bg: #090d16;
+    --surface: #111827;
+    --surface-elevated: #1f293d;
+    --border: #283548;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --brand: #6366f1;
+    --brand-glow: rgba(99, 102, 241, 0.35);
+
+    --severity-error: #ef4444;
+    --severity-error-bg: rgba(239, 68, 68, 0.12);
+    --severity-error-border: rgba(239, 68, 68, 0.3);
+
+    --severity-warning: #f59e0b;
+    --severity-warning-bg: rgba(245, 158, 11, 0.12);
+    --severity-warning-border: rgba(245, 158, 11, 0.3);
+
+    --severity-info: #38bdf8;
+    --severity-info-bg: rgba(56, 189, 248, 0.12);
+    --severity-info-border: rgba(56, 189, 248, 0.3);
+
+    --radius: 12px;
+    --radius-sm: 6px;
+    --radius-full: 9999px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 2rem 1.5rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #38bdf8, #10b981);
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  h1 span.title-text {
+    background: linear-gradient(135deg, #f8fafc, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .badge-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+
+  .metric-card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+  }
+
+  .metric-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .metric-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+
+  .counts {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+  }
+
+  .count-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .count-error {
+    background: var(--severity-error-bg);
+    color: var(--severity-error);
+    border: 1px solid var(--severity-error-border);
+  }
+
+  .count-warning {
+    background: var(--severity-warning-bg);
+    color: var(--severity-warning);
+    border: 1px solid var(--severity-warning-border);
+  }
+
+  .count-info {
+    background: var(--severity-info-bg);
+    color: var(--severity-info);
+    border: 1px solid var(--severity-info-border);
+  }
+
+  /* Filter bar */
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 2rem 0 1rem;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  .filter-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    font-size: 0.825rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--brand);
+    color: #ffffff;
+    border-color: var(--brand);
+    box-shadow: 0 0 12px var(--brand-glow);
+  }
+
+  /* Table */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  th {
+    background: rgba(255, 255, 255, 0.02);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .severity-error {
+    background: var(--severity-error-bg);
+    color: var(--severity-error);
+    border: 1px solid var(--severity-error-border);
+  }
+
+  .severity-warning {
+    background: var(--severity-warning-bg);
+    color: var(--severity-warning);
+    border: 1px solid var(--severity-warning-border);
+  }
+
+  .severity-info {
+    background: var(--severity-info-bg);
+    color: var(--severity-info);
+    border: 1px solid var(--severity-info-border);
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+
+  ul.files {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  ul.files li {
+    margin-bottom: 4px;
+  }
+
+  .thumb {
+    max-width: 80px;
+    max-height: 80px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    transition: transform 0.2s ease;
+  }
+
+  .thumb:hover {
+    transform: scale(2);
+    z-index: 10;
+  }
+
+  .empty-state {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>imagedatacheck report</h1>
-  <div class="meta">
-    <div><strong>Root:</strong> <code>{{ result.root }}</code></div>
-    <div><strong>Layout:</strong> {{ result.layout.value }}</div>
-    <div><strong>Files scanned:</strong> {{ files_count }}</div>
-    <div><strong>Findings:</strong> {{ findings_count }}</div>
-    <div><strong>Schema version:</strong> {{ schema_version }}</div>
-  </div>
-  <div class="counts">
-    {% for sev in ['error', 'warning', 'info'] %}
-      {% if counts.get(sev, 0) %}
-        <span class="severity-{{ sev }}">{{ sev }}: {{ counts[sev] }}</span>
-      {% endif %}
-    {% endfor %}
-  </div>
-</header>
+<div class="wrap">
+  <header>
+    <div class="header-top">
+      <h1>
+        <span>🔍</span>
+        <span class="title-text">Image DataCheck Diagnostic Report</span>
+      </h1>
+      <span class="badge-tag">v{{ schema_version }} Spec</span>
+    </div>
 
-<h2>Findings</h2>
-{% if findings %}
-<table>
-  <thead>
-    <tr>
-      <th>Severity</th>
-      <th>Code</th>
-      <th>Message</th>
-      <th>Files</th>
-      <th>Sample</th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for f in findings %}
-    <tr>
-      <td class="severity-{{ f.severity }}">{{ f.severity }}</td>
-      <td><code>{{ f.code }}</code></td>
-      <td>{{ f.message }}</td>
-      <td>
-        {% if f.files %}
-          <ul class="files">
-          {% for p in f.files[:5] %}
-            <li><code>{{ p }}</code></li>
-          {% endfor %}
-          {% if f.files|length > 5 %}
-            <li><em>… and {{ f.files|length - 5 }} more</em></li>
-          {% endif %}
-          </ul>
-        {% else %}
-          —
-        {% endif %}
-      </td>
-      <td>
-        {% if f.thumbnail %}
-          <img class="thumb" alt="" src="{{ f.thumbnail }}">
-        {% else %}
-          —
-        {% endif %}
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No findings.</p>
-{% endif %}
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Dataset Root</div>
+        <div class="metric-value"><code>{{ result.root }}</code></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Folder Layout</div>
+        <div class="metric-value">{{ result.layout.value }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Files Scanned</div>
+        <div class="metric-value">{{ files_count }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Findings</div>
+        <div class="metric-value">{{ findings_count }}</div>
+      </div>
+    </div>
 
+    <div class="counts">
+      {% for sev in ['error', 'warning', 'info'] %}
+        {% if counts.get(sev, 0) %}
+          <div class="count-pill count-{{ sev }}">
+            <span>●</span>
+            <span>{{ sev|capitalize }}: {{ counts[sev] }}</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <h2>Audit Findings & Anomalies</h2>
+    {% if findings %}
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="filterFindings('all')">All ({{ findings|length }})</button>
+      <button class="filter-btn" onclick="filterFindings('error')">Errors</button>
+      <button class="filter-btn" onclick="filterFindings('warning')">Warnings</button>
+      <button class="filter-btn" onclick="filterFindings('info')">Info</button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="table-card">
+  {% if findings %}
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 120px;">Severity</th>
+          <th style="width: 180px;">Anomaly Code</th>
+          <th>Diagnostic Message</th>
+          <th>Affected Files</th>
+          <th style="width: 100px;">Thumbnail</th>
+        </tr>
+      </thead>
+      <tbody id="findings-body">
+      {% for f in findings %}
+        <tr class="finding-row" data-severity="{{ f.severity }}">
+          <td>
+            <span class="pill severity-{{ f.severity }}">{{ f.severity }}</span>
+          </td>
+          <td><code>{{ f.code }}</code></td>
+          <td style="font-weight: 500;">{{ f.message }}</td>
+          <td>
+            {% if f.files %}
+              <ul class="files">
+              {% for p in f.files[:5] %}
+                <li><code>{{ p }}</code></li>
+              {% endfor %}
+              {% if f.files|length > 5 %}
+                <li><em>… and {{ f.files|length - 5 }} more</em></li>
+              {% endif %}
+              </ul>
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if f.thumbnail %}
+              <img class="thumb" alt="Sample" src="{{ f.thumbnail }}">
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state">
+      <p style="font-size: 1.1rem; color: #10b981; font-weight: 600;">✨ Zero anomalies detected. Dataset is clean and ready for training.</p>
+    </div>
+  {% endif %}
+  </div>
+</div>
+
+<script>
+  function filterFindings(sev) {
+    const rows = document.querySelectorAll('.finding-row');
+    const btns = document.querySelectorAll('.filter-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    rows.forEach(r => {
+      if (sev === 'all' || r.dataset.severity === sev) {
+        r.style.display = '';
+      } else {
+        r.style.display = 'none';
+      }
+    });
+  }
+</script>
 </body>
 </html>
