@@ -37,4 +37,5 @@ docs/perf.json
 docs/sample_report*
 demo/
 # Ignore generated demo dataset (not the generator)
-examples/demo/
+examples/demo/.git_msg.txt
+.puku-cli
