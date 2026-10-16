@@ -11,6 +11,12 @@ imbalance, leakage between train/val/test splits and conflicting labels.
   reports diff cleanly.
 * **Cross-platform** — tested on Ubuntu, Windows and macOS in CI.
 
+## Screenshots & HTML Reports
+
+| Standalone HTML Quality Audit Report | Data-Quality Findings & Duplicate Grouping |
+| :---: | :---: |
+| ![HTML Report](docs/screenshots/01-html-audit-report.png) | ![Quality Findings](docs/screenshots/02-data-quality-findings.png) |
+
 ## Quick start
 
 ```bash
