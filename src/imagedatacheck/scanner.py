@@ -136,7 +136,7 @@ def _try_add_file(
     # On a symlinked file, treat it as a new file only if follow_symlinks is on
     if path.is_symlink() and not state.follow_symlinks:
         return
-    rel = str(path.relative_to(root))
+    rel = path.relative_to(root).as_posix()
     split, label = assign_label_and_split(root, path, layout)
     out.append(
         FileInfo(

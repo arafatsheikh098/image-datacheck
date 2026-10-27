@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -93,8 +94,35 @@ def test_json_no_timestamps(tmp_path: Path) -> None:
 
 def test_html_escapes_hostile_filename(tmp_path: Path) -> None:
     """A filename like ``<script>.jpg`` must be HTML-escaped, never executed."""
-    root = tmp_path / "escape"
     bad_name = "<script>alert(1)</script>.jpg"
+    if os.name == "nt":
+        from imagedatacheck.model import FileInfo, Layout
+
+        f = FileInfo(
+            path=f"C:\\demo\\{bad_name}",
+            rel_path=f"demo/{bad_name}",
+            size=1024,
+            split="train",
+            label="cat",
+        )
+        finding = Finding(
+            code="W_DEMO",
+            severity=Severity.WARNING,
+            message="Hostile filename test",
+            files=[f.path],
+        )
+        result = ScanResult(
+            root="C:\\demo",
+            layout=Layout.SPLIT_CLASS_FOLDERS,
+            files=[f],
+            findings=[finding],
+        )
+        html = render_html(result)
+        assert "<script>alert" not in html
+        assert "&lt;script&gt;alert" in html
+        return
+
+    root = tmp_path / "escape"
     p = root / "train" / "cat" / bad_name
     p.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (64, 64), (10, 20, 30)).save(p, format="JPEG", quality=85)
@@ -108,7 +136,6 @@ def test_html_escapes_hostile_filename(tmp_path: Path) -> None:
     )
 
     from imagedatacheck.layout import detect_layout
-    from imagedatacheck.model import Finding
     from imagedatacheck.scanner import make_scan_result, walk
 
     layout, _ = detect_layout(root)

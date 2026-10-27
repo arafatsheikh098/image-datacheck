@@ -41,6 +41,7 @@ jobs:
             --html .site/index.html \
             --json .site/report.json \
             --thumbnails 12 \
+            --fail-on never \
             --quiet
 
       - name: Upload Pages artifact
